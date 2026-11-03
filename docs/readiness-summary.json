@@ -63,15 +63,50 @@
   "baseline_commit": "be4494174931406f5b2a9beddd7da918df0f19dd",
   "smoke": {
     "seed": 42,
-    "epochs": 2,
+    "epochs_requested": 2,
+    "epochs_completed": 2,
+    "selected_epoch": 2,
     "optimizer_updates": 3294,
     "finite_gradient_checks": 79056,
     "weights_changed": true,
     "reload_predictions_identical": true,
-    "duration_seconds": 5.727212208999845,
+    "duration_seconds": 4.2865704169962555,
     "test_scored": false
   },
-  "local_evidence": "results/readiness/smoke-20261103/ (ignored, retained)",
-  "tests": "11/11 unittest checks passed; local review only",
-  "retention": "Keep local checkpoint and detailed manifest/report as current readiness evidence; revisit when superseded by an independently verified run."
+  "local_evidence": "results/readiness/smoke-remediation-20261103/",
+  "tests": "21/21 unittest checks passed; local review only",
+  "retention": "Keep local checkpoint and detailed manifest/report as current readiness evidence; revisit when superseded by an independently verified run.",
+  "previous_smoke": {
+    "local_evidence": "results/readiness/smoke-20261103/ (ignored, retained)",
+    "summary": {
+      "seed": 42,
+      "epochs": 2,
+      "optimizer_updates": 3294,
+      "finite_gradient_checks": 79056,
+      "weights_changed": true,
+      "reload_predictions_identical": true,
+      "duration_seconds": 5.727212208999845,
+      "test_scored": false
+    }
+  },
+  "remediation": {
+    "date": "2026-11-03",
+    "repair_passes": 1,
+    "findings_fixed": [
+      "checkpoint compatibility",
+      "dataset routing",
+      "actual step/epoch accounting"
+    ],
+    "base_commit_at_run": "54defdb5051bd2193e08c4291bfbefb3dc523afd",
+    "run_source_sha256": {
+      "project_code/train/run_baseline.py": "83543237af11a13af177682fcdc22f5fce9d6719ffad1fcb2d489c6dd24cc389",
+      "project_code/algorithms/neural_networks.py": "8999e5bd309d3e230cb732c34798c9cbc4e29393133d272f0063ce029536ce90",
+      "project_code/train/train_pytorch_model.py": "0cd5b36e7c322501d144e1ed08f61530834a76e9ef6c8a2a3d8022914d4896bb",
+      "project_code/data/prepare_data_pytorch.py": "c21e0c0f5b4b1210e58d6d23ba3b61caa64dbf2b05c92fbda43eb0deae0a356a"
+    },
+    "checkpoint_sha256": "1b2c5aebd8849d849c9ad34a01f2aa17278cff6412666f28c07fa81497f482fb",
+    "default_state_and_metrics_match_previous_smoke": true,
+    "dry_run": "results/readiness/dry-run-remediation-20261103/",
+    "smoke_output_bytes": 175238
+  }
 }

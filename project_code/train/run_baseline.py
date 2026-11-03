@@ -16,9 +16,10 @@ import torch
 
 from ..algorithms.neural_networks import DEBNetHC
 from ..data.load_data import load_col_types, load_dataframes
-from ..data.prepare_data_pytorch import prepare_data_tensors
+from ..data.prepare_data_pytorch import LogScaleTensorTransformer, prepare_data_tensors
 
 ROOT = Path(__file__).resolve().parents[2]
+MODEL_SETTINGS = ("shared_hidden_layers", "par_hidden_layers", "dropout_prob", "clamp_function", "use_skip_connection")
 DATA_FILES = ("init_net.csv", "train.csv", "val.csv", "test.csv", "types_of_col.json")
 
 
@@ -67,9 +68,9 @@ def validate_frames(frames, full, col_types):
 def prepare(dataset, batch_size):
     raw = {s: pd.read_csv(dataset / f"{s}.csv", index_col=0) for s in ("train", "val", "test")}
     full = pd.read_csv(dataset / "init_net.csv", index_col=0)
-    types = load_col_types("init_net", datasets_folder=dataset.parent)
+    types = load_col_types(dataset.name, datasets_folder=dataset.parent)
     validate_frames(raw, full, types)
-    frames, types = load_dataframes("init_net", datasets_folder=dataset.parent)
+    frames, types = load_dataframes(dataset.name, datasets_folder=dataset.parent)
     tensors, loaders, datasets, scalers = prepare_data_tensors(
         frames, types, batch_size, "log_standardize", torch.device("cpu"))
     for split, ds in datasets.items():
@@ -90,9 +91,8 @@ def prepare(dataset, batch_size):
 
 
 def make_model(training, types, scalers):
-    names = ("shared_hidden_layers", "par_hidden_layers", "dropout_prob", "clamp_function", "use_skip_connection")
     return DEBNetHC(col_types=types, input_transformer=scalers["input"],
-                    output_transformer=scalers["output"], **{k: training[k] for k in names})
+                    output_transformer=scalers["output"], **{k: training[k] for k in MODEL_SETTINGS})
 
 
 def check_scalers(tensors, scalers):
@@ -105,13 +105,27 @@ def check_scalers(tensors, scalers):
         torch.testing.assert_close(scaler.std, std)
 
 
-def restore_checkpoint(path, training, types, scalers):
-    # New checkpoints contain only tensors and primitive metadata.
+def restore_checkpoint(path, config, types):
+    """Reject semantic mismatches and rebuild preprocessing from saved metadata."""
     saved = torch.load(path, map_location="cpu", weights_only=True)
+    if "column_types" not in saved:
+        raise ValueError("checkpoint lacks full column metadata; regenerate with this runner")
+    if saved["config"]["model_class"] != config["model_class"]:
+        raise ValueError("checkpoint model_class mismatch")
+    for key in MODEL_SETTINGS + ("scaling_type",):
+        if saved["config"]["training"][key] != config["training"][key]:
+            raise ValueError(f"checkpoint training setting mismatch: {key}")
+    if saved["column_types"] != types:
+        raise ValueError("checkpoint column order or transformation metadata mismatch")
+    if config["model_class"] != "DEBNetHC" or config["training"]["scaling_type"] != "log_standardize":
+        raise ValueError("checkpoint requires CPU DEBNetHC with log_standardize")
+    scalers = {}
     for kind in ("input", "output"):
+        cols = saved["column_types"][kind]
+        scalers[kind] = LogScaleTensorTransformer(cols["all"], cols["log"], cols["scale"])
         for key in ("mean", "std"):
             setattr(scalers[kind], key, saved["scalers"][kind][key])
-    model = make_model(training, types, scalers)
+    model = make_model(saved["config"]["training"], saved["column_types"], scalers)
     model.load_state_dict(saved["state_dict"])
     return model.eval()
 
@@ -124,12 +138,16 @@ def run(config, mode, output):
         raise ValueError("smoke limits exceed the accepted bounds")
     if not 0 < config["max_output_bytes"] <= 100_000_000:
         raise ValueError("output bound exceeds the accepted limit")
+    if config["training"]["scaling_type"] != "log_standardize":
+        raise ValueError("readiness runner supports only log_standardize preprocessing")
     if output.exists():
         raise ValueError("output directory already exists; choose a fresh run directory")
     torch.set_num_threads(1)
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
-    types, tensors, _, scalers, manifest = prepare(ROOT / config["dataset"], config["training"]["batch_size"])
+    dataset = (ROOT / config["dataset"]).resolve()
+    types, tensors, _, scalers, manifest = prepare(dataset, config["training"]["batch_size"])
+    manifest["dataset_directory"] = str(dataset)
     check_scalers(tensors, scalers)
     model = make_model(config["training"], types, scalers).eval()
     with torch.no_grad():
@@ -137,7 +155,8 @@ def run(config, mode, output):
         if not torch.isfinite(prediction).all():
             raise ValueError("non-finite validation predictions")
     report = {"mode": mode, "seed": config["seed"], "device": "cpu", "test_scored": False,
-              "optimizer_updates": 0, "baseline_commit": config["baseline_commit"],
+              "optimizer_updates": 0, "epochs_completed": 0, "dataset_directory": str(dataset),
+              "baseline_commit": config["baseline_commit"],
               "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "config": config, "python": platform.python_version(),
               "packages": {p: importlib.metadata.version(p) for p in
@@ -157,7 +176,7 @@ def run(config, mode, output):
             gradient_checks.append(True)
             return grad
 
-        def factory(clamp_function="logsigmoid", **kwargs):
+        def factory(clamp_function=config["training"]["clamp_function"], **kwargs):
             model = DEBNetHC(clamp_function=clamp_function, **kwargs)
             initial.update({k: v.detach().clone() for k, v in model.named_parameters()})
             for p in model.parameters():
@@ -166,9 +185,9 @@ def run(config, mode, output):
 
         training = copy.deepcopy(config["training"])
         training["max_epochs"] = config["epochs"]
-        model, metrics = train_neural_network(training, factory, "init_net", device=torch.device("cpu"),
+        model, metrics, stats = train_neural_network(training, factory, dataset.name, device=torch.device("cpu"),
                                               seed=config["seed"], verbose=False,
-                                              datasets_folder=ROOT / "data/processed")
+                                              datasets_folder=dataset.parent, return_training_stats=True)
         if not np.isfinite(metrics.to_numpy(dtype=float)).all() or not gradient_checks:
             raise ValueError("non-finite metrics or no checked gradients")
         changed = any(not torch.equal(initial[k], v.detach()) for k, v in model.named_parameters())
@@ -180,11 +199,12 @@ def run(config, mode, output):
             expected = model(val_x)
         if not torch.isfinite(expected).all():
             raise ValueError("non-finite post-training predictions")
-        report.update({"optimizer_updates": len(tensors["train"]["input"]) * config["epochs"],
-                       "epochs": config["epochs"], "finite_gradient_checks": len(gradient_checks),
+        report.update({"optimizer_updates": stats["optimizer_steps"],
+                       "epochs_completed": stats["epochs_completed"],
+                       "selected_epoch": stats["selected_epoch"], "epochs_requested": config["epochs"], "finite_gradient_checks": len(gradient_checks),
                        "weights_changed": changed, "validation_metrics": metrics.to_dict()})
         payload = {"state_dict": model.state_dict(), "config": config,
-                   "columns": {k: types[k]["all"] for k in ("input", "output", "mask")},
+                   "column_types": types,
                    "scalers": {k: {a: getattr(model.input_transformer if k == "input" else
                                              model.output_transformer, a) for a in ("mean", "std")}
                                for k in ("input", "output")}}
@@ -197,7 +217,7 @@ def run(config, mode, output):
         output.mkdir(parents=True)
         checkpoint = output / "checkpoint.pt"
         checkpoint.write_bytes(buffer.getvalue())
-        restored = restore_checkpoint(checkpoint, training, types, copy.deepcopy(scalers))
+        restored = restore_checkpoint(checkpoint, config, types)
         with torch.no_grad():
             actual = restored(val_x)
         torch.testing.assert_close(actual, expected, rtol=0, atol=0)

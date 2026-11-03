@@ -40,7 +40,11 @@ def adjust_config(config):
 
 def train_neural_network(config, model_class, dataset_name,
                          device=None, seed=42, verbose=False, print_val_metrics_every=10,
-                         report_val_scores=False, datasets_folder='data/processed'):
+                         report_val_scores=False, datasets_folder='data/processed',
+                         return_training_stats=False):
+    """Optionally return actual step/epoch counts alongside the usual model and metrics."""
+    if return_training_stats and report_val_scores:
+        raise ValueError('training stats require report_val_scores=False')
     torch.manual_seed(seed=seed)
     np.random.seed(seed)
 
@@ -99,6 +103,9 @@ def train_neural_network(config, model_class, dataset_name,
     best_epoch = 0
     epochs_no_improve = 0
 
+    optimizer_steps = 0
+    epochs_completed = 0
+
     # Train the model with batches
     for epoch in range(max_epochs):
         optimizer.zero_grad()
@@ -116,9 +123,11 @@ def train_neural_network(config, model_class, dataset_name,
             if epoch < n_epochs_gradient_descent:
                 if i == len(dataloaders['train']) - 1:
                     optimizer.step()
+                    optimizer_steps += 1
                     optimizer.zero_grad()
             else:
                 optimizer.step()
+                optimizer_steps += 1
                 optimizer.zero_grad()
         traces_df.loc[epoch, 'train_loss'] = epoch_loss / len(dataloaders['train'])
 
@@ -147,6 +156,7 @@ def train_neural_network(config, model_class, dataset_name,
             if config['loss_function'] == 'mse_infeasibility':
                 print(criterion.loss_values)
 
+        epochs_completed = epoch + 1
         if report_val_scores:
             report_metrics_dict = traces_df.loc[epoch].to_dict()
             report_metrics_dict['epoch'] = epoch
@@ -178,6 +188,10 @@ def train_neural_network(config, model_class, dataset_name,
         report_metrics_dict['epoch'] = report_epoch
         return report_metrics_dict
     else:
+        if return_training_stats:
+            return model, traces_df.loc[report_epoch], {
+                "optimizer_steps": optimizer_steps, "epochs_completed": epochs_completed,
+                "selected_epoch": report_epoch + 1}
         return model, traces_df.loc[report_epoch]
 
 

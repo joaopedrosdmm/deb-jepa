@@ -1,0 +1,16 @@
+{
+  "baseline_commit": "be4494174931406f5b2a9beddd7da918df0f19dd",
+  "artifact": "results/init_net/models/logQ_81327e-01_MLP.pth",
+  "artifact_sha256": "c718a7e21e3fbd3b1ec4cc4a06f2e21d3256e4b96bbe91ac48d879315ec171ef",
+  "architecture": {
+    "shared_hidden_layers": [
+      128,
+      128
+    ],
+    "par_hidden_layers": [],
+    "dropout_prob": 0.24,
+    "use_skip_connection": true
+  },
+  "evidence": "Checkpoint inspected statically and loaded from the trusted upstream baseline; strict state-dict load and exact forward comparison pass.",
+  "qualification": "Smoke configuration uses checkpoint-backed architecture and trainer-example optimizer settings. Exact author-used training provenance and published outcome equivalence are not established."
+}

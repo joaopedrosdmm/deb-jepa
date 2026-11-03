@@ -1,3 +1,17 @@
+# deb-jepa
+
+Development fork of Diogo Oliveira's DEB initialization implementation. This
+checkout adds a bounded supervised readiness runner; JEPA training is future work.
+The upstream README, attribution and citation instructions follow below.
+
+- [Training readiness and verified commands](docs/training-readiness.md)
+- [Baseline evidence](docs/baseline-evidence.json)
+- [Compact readiness result](docs/readiness-summary.json)
+- Research roadmap and teaching materials live in the sibling Tese repository.
+  Local entry point: `../Tese/README.md`; the repositories must be checked out as siblings.
+
+---
+
 # DEB ML Init
 
 ## Reliable machine learning initialization methods for the calibration of Dynamic Energy Budget models

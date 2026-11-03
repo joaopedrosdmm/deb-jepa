@@ -1,0 +1,29 @@
+{
+  "baseline_commit": "be4494174931406f5b2a9beddd7da918df0f19dd",
+  "model_class": "DEBNetHC",
+  "dataset": "data/processed/init_net",
+  "seed": 42,
+  "device": "cpu",
+  "epochs": 2,
+  "timeout_seconds": 600,
+  "max_output_bytes": 100000000,
+  "training": {
+    "scaling_type": "log_standardize",
+    "batch_size": 1,
+    "max_epochs": 675,
+    "learning_rate": 0.00011,
+    "weight_decay": 0.0317,
+    "shared_hidden_layers": [
+      128,
+      128
+    ],
+    "par_hidden_layers": [],
+    "dropout_prob": 0.24,
+    "clamp_function": "logsigmoid",
+    "use_skip_connection": true,
+    "n_epochs_gradient_descent": 0,
+    "patience": 10,
+    "early_stopping_metric": null,
+    "loss_function": "mse"
+  }
+}

@@ -177,3 +177,6 @@ filepaths.csv
 
 
 
+
+# Local readiness checkpoints and detailed run outputs
+results/readiness/

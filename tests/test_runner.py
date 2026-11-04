@@ -116,9 +116,9 @@ class RunnerRegressionTests(unittest.TestCase):
         self.assertEqual(report["epochs_requested"], 2)
         self.assertFalse(report["test_scored"])
 
-    def train_fixture(self, accumulation=0, early_stop=False, stats=True):
+    def train_fixture(self, accumulation=0, early_stop=False, stats=True, max_epochs=2):
         cfg = copy.deepcopy(self.config["training"])
-        cfg.update(batch_size=2, max_epochs=2, n_epochs_gradient_descent=accumulation,
+        cfg.update(batch_size=2, max_epochs=max_epochs, n_epochs_gradient_descent=accumulation,
                    early_stopping_metric="val_loss" if early_stop else None, patience=1)
         x = torch.tensor([[1.0], [2.0], [3.0]])
         ds = TensorDataset(x, 2 * x, torch.ones_like(x))
@@ -144,7 +144,7 @@ class RunnerRegressionTests(unittest.TestCase):
         self.assertEqual(self.train_fixture(accumulation=1)[2]["optimizer_steps"], 3)
 
     def test_counts_completed_epochs_separately_from_selected_epoch(self):
-        self.assertEqual(self.train_fixture(early_stop=True)[2], {
+        self.assertEqual(self.train_fixture(early_stop=True, max_epochs=3)[2], {
             "optimizer_steps": 4, "epochs_completed": 2, "selected_epoch": 1})
 
     def test_default_trainer_return_contract_preserved(self):

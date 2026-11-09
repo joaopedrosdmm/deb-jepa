@@ -125,8 +125,8 @@ Work on small `codex/` branches in your fork. Diogo can review proposed changes
 there once João requests collaboration; pushing a branch does not imply a review
 has occurred. No PR, invitation, reviewer request or message was created.
 
-Tese remains the owner of research planning and learning materials. The sibling
-`deb-jepa` checkout owns implementation, runtime and experiment configurations.
+Tese owns research planning and learning materials. The fork checked out at
+`Tese/deb-jepa/` owns implementation, runtime and experiment configurations.
 The current setup leaves the JEPA encoder boundary, masks, anti-collapse mechanism,
 matched controls and primary biological endpoint open. Temperature/mu_V semantics,
 MATLAB/DEBtool availability, calibration ownership and workload must be settled

@@ -7,8 +7,8 @@ The upstream README, attribution and citation instructions follow below.
 - [Training readiness and verified commands](docs/training-readiness.md)
 - [Baseline evidence](docs/baseline-evidence.json)
 - [Compact readiness result](docs/readiness-summary.json)
-- Research roadmap and teaching materials live in the sibling Tese repository.
-  Local entry point: `../Tese/README.md`; the repositories must be checked out as siblings.
+- Research roadmap and teaching materials live in the Tese repository. For a
+  local checkout at `Tese/deb-jepa/`, the Tese entry point is `../README.md`.
 
 ---
 

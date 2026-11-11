@@ -180,3 +180,6 @@ filepaths.csv
 
 # Local readiness checkpoints and detailed run outputs
 results/readiness/
+
+# macOS Finder metadata
+.DS_Store
